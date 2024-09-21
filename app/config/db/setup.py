@@ -32,6 +32,7 @@ async def init_db(app: FastAPI):
         config=DB_TORTOISE,
         generate_schemas=False,
         add_exception_handlers=False,
+        use_tz=True,
     ):
         logger.info('Инциализация была успешна произведена')
         yield
