@@ -125,7 +125,6 @@ celerybeat.pid
 
 *.debug.yml
 .dockerignore
-Dockerfile
 # Environments
 .env
 .venv
