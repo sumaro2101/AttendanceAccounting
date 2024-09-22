@@ -6,8 +6,10 @@ class EndpointState(Model):
     Модель статуса
     """
     id = fields.IntField(primary_key=True)
-    endpoint_id = fields.ForeignKeyField('models.Client')
-    client_id = fields.ForeignKeyField('models.Endpoint')
+    endpoint = fields.ForeignKeyField('models.Client',
+                                      related_name='endpoint',
+                                      )
+    client = fields.ForeignKeyField('models.Endpoint')
     state_name = fields.CharField(max_length=50)
     state_reason = fields.CharField(max_length=50)
     state_start = fields.BigIntField()
@@ -19,6 +21,9 @@ class EndpointState(Model):
 
     class Meta:
         table = 'endpoint_states'
+    
+    def __str__(self) -> str:
+        return self.id
 
 
 class Client(Model):
