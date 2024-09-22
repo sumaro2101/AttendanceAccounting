@@ -1,15 +1,20 @@
-from fastapi import (APIRouter,
+from fastapi import (APIRouter, Header,
                      Query,
                      HTTPException,
                      status,
-                     Depends)
+                     Depends,
+                     )
 from tortoise.expressions import Q, RawSQL
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 from loguru import logger
 
-from .schemas import SchemaTask1
+from .schemas import (SchemaTask1,
+                      SchemaQueryFilter,
+                      SchemaGetRecord,
+                      )
+from .responses import render
 from app.config.db.models import EndpointState
 from .dependencies import (state_eq,
                            state_gt,
@@ -23,9 +28,12 @@ from .dependencies import (state_eq,
 router = APIRouter(prefix='/time',
                    tags=['search_data'],)
 
+
 @router.post('/get-record/',
              name='Поиск данных по дате',
-             description='Поиск нужного state_id по дате.')
+             description='Поиск нужного state_id по дате.',
+             response_model=SchemaGetRecord,
+             )
 async def get_time(time: SchemaTask1 = Depends(get_microseconds_utc_3)):
     """
     Вывод state_id по дате
@@ -47,6 +55,14 @@ async def get_time(time: SchemaTask1 = Depends(get_microseconds_utc_3)):
 @router.get('/filter-records/',
             name='Фильтрация по дате',
             description='Фильтрация по дате с Query-параметрами',
+            response_model=SchemaQueryFilter,
+            responses={
+                200: {
+                    'content': {'file/csv': {},
+                                'file/excel': {}},
+                    'desctiotion': 'Генерация кастомного ответа',
+                },
+            },
             )
 async def get_filtered_query(endpoint_id__eq: Annotated[int | None,
                                                         Query(ge=1)] = None,
@@ -72,6 +88,7 @@ async def get_filtered_query(endpoint_id__eq: Annotated[int | None,
                              state_start__gte: Annotated[datetime, Depends(state_gte)] = None,
                              state_start__lt: Annotated[datetime, Depends(state_lt)] = None,
                              state_start__lte: Annotated[datetime, Depends(state_lte)] = None,
+                             accept: Optional[str] = Header(default='application/json'),
                              ):
     """
     Энд поинт по фильтрации даты
@@ -89,7 +106,9 @@ async def get_filtered_query(endpoint_id__eq: Annotated[int | None,
     clear_params = {key: value for key, value in query_para.items() if value}
     if not clear_params:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=dict(No_contains_Query_Parameters='Неоходимо указать хотяб один параметр'))
+                            detail=dict(
+                                No_contains_Query_Parameters='Неоходимо указать хотяб один параметр',
+                                ))
     logger.info(f'clear data {clear_params}')
-    filtered_query = EndpointState.filter(**clear_params).order_by('-state_start').all()
-    return await filtered_query
+    filtered_query = await EndpointState.filter(**clear_params).order_by('-state_start').values()
+    return render(filtered_query, accept=accept, status_code=200, headers=None)
